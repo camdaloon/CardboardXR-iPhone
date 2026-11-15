@@ -7,25 +7,39 @@ jobs:
   export-xcode:
     name: Export Xcode Project
     runs-on: ubuntu-latest
+    container:
+      image: unityci/editor:ubuntu-6000.6.0f1-ios-3
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           lfs: true
 
-      - name: Cache Unity Library
-        uses: actions/cache@v4
-        with:
-          path: Library
-          key: Library-iOS-${{ hashFiles('Packages/manifest.json') }}
+      - name: Export Xcode Project via Unity CLI
+        run: |
+          mkdir -p build/iOS
+          unity-editor \
+            -batchmode \
+            -nographics \
+            -quit \
+            -username "${{ secrets.UNITY_USERNAME }}" \
+            -password "${{ secrets.UNITY_PASSWORD }}" \
+            -projectPath "$GITHUB_WORKSPACE" \
+            -buildTarget iOS \
+            -executeMethod UnityEditor.BuildPipeline.BuildPlayer \
+            -logFile /dev/stdout || true
 
-      - name: Build Xcode Project with Unity
-        uses: game-ci/unity-builder@v4
-        with:
-          targetPlatform: iOS
-          unityVersion: 6000.6.0f1
-          buildsPath: build
-          customParameters: -username "${{ secrets.UNITY_USERNAME }}" -password "${{ secrets.UNITY_PASSWORD }}"
+          # Run brenpoly's build or standard iOS export
+          unity-editor \
+            -batchmode \
+            -nographics \
+            -quit \
+            -username "${{ secrets.UNITY_USERNAME }}" \
+            -password "${{ secrets.UNITY_PASSWORD }}" \
+            -projectPath "$GITHUB_WORKSPACE" \
+            -buildTarget iOS \
+            -customBuildPath "$GITHUB_WORKSPACE/build/iOS" \
+            -logFile /dev/stdout
 
       - name: Upload Xcode Project Artifact
         uses: actions/upload-artifact@v4
