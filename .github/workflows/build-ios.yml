@@ -8,12 +8,41 @@ jobs:
     name: Export Xcode Project
     runs-on: ubuntu-latest
     container:
-      image: unityci/editor:ubuntu-6000.6.0f1-ios-3
+      image: unityci/editor:ubuntu-6000.6.0f1-ios-3.2.2
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           lfs: true
+
+      - name: Create CLI Build Script
+        run: |
+          mkdir -p Assets/Editor
+          cat << 'EOF' > Assets/Editor/CloudBuildHelper.cs
+          using System.Linq;
+          using UnityEditor;
+
+          public static class CloudBuildHelper
+          {
+              public static void ExportIOS()
+              {
+                  var scenes = EditorBuildSettings.scenes
+                      .Where(s => s.enabled)
+                      .Select(s => s.path)
+                      .ToArray();
+
+                  var options = new BuildPlayerOptions
+                  {
+                      scenes = scenes,
+                      locationPathName = "build/iOS",
+                      target = BuildTarget.iOS,
+                      options = BuildOptions.None
+                  };
+
+                  BuildPipeline.BuildPlayer(options);
+              }
+          }
+          EOF
 
       - name: Export Xcode Project via Unity CLI
         run: |
@@ -26,19 +55,7 @@ jobs:
             -password "${{ secrets.UNITY_PASSWORD }}" \
             -projectPath "$GITHUB_WORKSPACE" \
             -buildTarget iOS \
-            -executeMethod UnityEditor.BuildPipeline.BuildPlayer \
-            -logFile /dev/stdout || true
-
-          # Run brenpoly's build or standard iOS export
-          unity-editor \
-            -batchmode \
-            -nographics \
-            -quit \
-            -username "${{ secrets.UNITY_USERNAME }}" \
-            -password "${{ secrets.UNITY_PASSWORD }}" \
-            -projectPath "$GITHUB_WORKSPACE" \
-            -buildTarget iOS \
-            -customBuildPath "$GITHUB_WORKSPACE/build/iOS" \
+            -executeMethod CloudBuildHelper.ExportIOS \
             -logFile /dev/stdout
 
       - name: Upload Xcode Project Artifact
