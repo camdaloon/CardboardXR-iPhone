@@ -1,0 +1,67 @@
+name: Build CardboardXR for iOS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  export-xcode:
+    name: Export Xcode Project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-iOS-${{ hashFiles('Packages/manifest.json') }}
+
+      - name: Build Xcode Project with Unity
+        uses: game-ci/unity-builder@v4
+        with:
+          targetPlatform: iOS
+          unityVersion: 6000.6.0f1
+          buildsPath: build
+          customParameters: -username "${{ secrets.UNITY_USERNAME }}" -password "${{ secrets.UNITY_PASSWORD }}"
+
+      - name: Upload Xcode Project Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: XcodeProject
+          path: build/iOS
+
+  package-ipa:
+    name: Compile Unsigned IPA
+    needs: export-xcode
+    runs-on: macos-latest
+    steps:
+      - name: Download Xcode Project
+        uses: actions/download-artifact@v4
+        with:
+          name: XcodeProject
+          path: XcodeProject
+
+      - name: Build Unsigned App & Package IPA
+        run: |
+          cd XcodeProject
+          xcodebuild -project Unity-iPhone.xcodeproj \
+            -scheme Unity-iPhone \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/*.app Payload/
+          zip -r CardboardXR.ipa Payload
+
+      - name: Upload Final IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: CardboardXR-iOS
+          path: XcodeProject/CardboardXR.ipa
+
