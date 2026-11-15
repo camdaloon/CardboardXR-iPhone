@@ -45,8 +45,11 @@ jobs:
           EOF
 
       - name: Export Xcode Project via Unity CLI
+        env:
+          HOME: /tmp/unity-home
         run: |
-          mkdir -p build/iOS
+          mkdir -p "$HOME/.local/share/unity3d" "$HOME/.cache/unity3d" build/iOS
+          /opt/unity/Editor/Data/Resources/Licensing/Client/Unity.Licensing.Client --acquire-floating || true
           unity-editor \
             -batchmode \
             -nographics \
