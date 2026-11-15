@@ -43,16 +43,14 @@ jobs:
               }
           }
           EOF
-
-      - name: Export Xcode Project via Unity CLI
+          
+      - name: Export Xcode Project via Virtual Display
         env:
           HOME: /tmp/unity-home
         run: |
           mkdir -p "$HOME/.local/share/unity3d" "$HOME/.cache/unity3d" build/iOS
-          /opt/unity/Editor/Data/Resources/Licensing/Client/Unity.Licensing.Client --acquire-floating || true
-          unity-editor \
-            -batchmode \
-            -nographics \
+          xvfb-run --auto-servernum --server-args='-screen 0 1024x768x24' \
+            unity-editor \
             -quit \
             -username "${{ secrets.UNITY_USERNAME }}" \
             -password "${{ secrets.UNITY_PASSWORD }}" \
